@@ -202,7 +202,7 @@ function getOutputPath (inputPath, hash) {
 
 function getSigncodePath () {
   if (process.platform === 'win32') {
-    return path.join(__dirname, 'vendor', process.platform, 'osslsigncode')
+    return path.join(__dirname, 'vendor', 'signtool.exe')
   } else {
     return path.join(__dirname, 'vendor', process.platform, 'osslsigncode')
   }

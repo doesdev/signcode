@@ -1,6 +1,6 @@
 {
   "name": "signcode-tf",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Sign Windows executables from a Mac",
   "repository": "https://github.com/kevinsawicki/signcode",
   "main": "index.js",
