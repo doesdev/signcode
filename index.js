@@ -12,11 +12,12 @@ exports.sign = function (options, callback) {
     hashes = ['sha1', 'sha256']
   }
 
-  var finalPath = getOutputPath(signOptions.path)
+  var finalPath = process.platform === 'win32' ? signOptions.path : getOutputPath(signOptions.path)
   var signWithNextHash = function () {
     var hash = hashes.shift()
+    var overwrite = signOptions.overwrite || process.platform === 'win32'
     if (!hash) {
-      if (signOptions.overwrite) {
+      if (overwrite && finalPath !== options.path) {
         fs.rename(finalPath, options.path, function (error) {
           if (error) return callback(error)
           callback(null, options.path)
@@ -28,15 +29,23 @@ exports.sign = function (options, callback) {
     }
 
     signOptions.hash = hash
-    spawnSign(signOptions, function (error, outputPath) {
+    spawnSign(signOptions, overwrite ? finalPath : getOutputPath(options.path, options.hash), function (error, outputPath) {
       if (error) return callback(error)
-      fs.rename(outputPath, finalPath, function () {
-        if (error) return callback(error)
 
+      function next () {
         signOptions.path = finalPath
         signOptions.nest = true
         signWithNextHash()
-      })
+      }
+
+      if (overwrite) {
+        next()
+      } else {
+        fs.rename(outputPath, finalPath, function () {
+          if (error) return callback(error)
+          next()
+        })
+      }
     })
   }
   signWithNextHash()
@@ -46,47 +55,57 @@ exports.verify = function (options, callback) {
   spawnVerify(options, callback)
 }
 
-function spawnSign (options, callback) {
-  var outputPath = getOutputPath(options.path, options.hash)
-  var args = [
-    '-in',
-    options.path,
-    '-out',
-    outputPath,
-    '-t',
-    'http://timestamp.verisign.com/scripts/timstamp.dll'
+function spawnSign (options, outputPath, callback) {
+  var timestampingServiceUrl = 'http://timestamp.verisign.com/scripts/timstamp.dll'
+  var isWin = process.platform === 'win32'
+  var args = isWin ? [
+    'sign',
+    '/tr', timestampingServiceUrl
+  ] : [
+    '-in', options.path,
+    '-out', outputPath,
+    '-t', timestampingServiceUrl
   ]
 
   var certExtension = path.extname(options.cert)
   if (certExtension === '.p12' || certExtension === '.pfx') {
-    args.push('-pkcs12', options.cert)
+    args.push(isWin ? '/f' : '-pkcs12', options.cert)
   } else {
-    args.push('-certs', options.cert)
-    args.push('-key', options.key)
+    args.push(isWin ? '/f' : '-certs', options.cert)
+    // todo win maybe incorrect
+    args.push(isWin ? '/csp' : '-key', options.key)
   }
 
   if (options.hash) {
-    args.push('-h', options.hash)
+    args.push(isWin ? '/td' : '-h', options.hash)
   }
 
   if (options.name) {
-    args.push('-n', options.name)
+    args.push(isWin ? '/d' : '-n', options.name)
   }
 
   if (options.site) {
-    args.push('-i', options.site)
+    args.push(isWin ? '/du' : '-i', options.site)
   }
 
   if (options.nest) {
-    args.push('-nest')
+    args.push(isWin ? '/as' : '-nest')
   }
 
   if (options.password) {
-    args.push('-pass', options.password)
+    args.push(isWin ? '/p' : '-pass', options.password)
   }
 
   if (options.passwordPath) {
+    if (isWin) {
+      throw new Error('-readpass is not supported on Windows')
+    }
     args.push('-readpass', options.passwordPath)
+  }
+
+  if (isWin) {
+    // must be last argument
+    args.push(options.path)
   }
 
   var spawnOptions = {
@@ -182,5 +201,9 @@ function getOutputPath (inputPath, hash) {
 }
 
 function getSigncodePath () {
-  return path.join(__dirname, 'vendor', process.platform, 'osslsigncode')
+  if (process.platform === 'win32') {
+    return path.join(__dirname, 'vendor', process.platform, 'osslsigncode')
+  } else {
+    return path.join(__dirname, 'vendor', process.platform, 'osslsigncode')
+  }
 }
