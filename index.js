@@ -60,7 +60,7 @@ function spawnSign (options, outputPath, callback) {
   var isWin = process.platform === 'win32'
   var args = isWin ? [
     'sign',
-    '/tr', timestampingServiceUrl
+    '/t', timestampingServiceUrl
   ] : [
     '-in', options.path,
     '-out', outputPath,
