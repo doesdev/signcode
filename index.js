@@ -55,12 +55,13 @@ exports.verify = function (options, callback) {
   spawnVerify(options, callback)
 }
 
+// on windows be aware of http://stackoverflow.com/a/32640183/1910191
 function spawnSign (options, outputPath, callback) {
   var timestampingServiceUrl = 'http://timestamp.verisign.com/scripts/timstamp.dll'
   var isWin = process.platform === 'win32'
   var args = isWin ? [
     'sign',
-    '/t', timestampingServiceUrl
+    options.nest ? '/tr' : '/t', options.nest ? "http://timestamp.comodoca.com/rfc3161" : timestampingServiceUrl
   ] : [
     '-in', options.path,
     '-out', outputPath,
@@ -77,7 +78,12 @@ function spawnSign (options, outputPath, callback) {
   }
 
   if (options.hash) {
-    args.push(isWin ? '/td' : '-h', options.hash)
+    if (!isWin || options.hash !== "sha1") {
+      args.push(isWin ? '/fd' : '-h', options.hash)
+      if (isWin) {
+        args.push('/td', 'sha256')
+      }
+    }
   }
 
   if (options.name) {
