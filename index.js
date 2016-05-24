@@ -1,6 +1,7 @@
 var ChildProcess = require('child_process')
 var fs = require('fs')
 var path = require('path')
+var os = require('os')
 
 exports.sign = function (options, callback) {
   var signOptions = Object.assign({}, options)
@@ -123,7 +124,7 @@ function spawnSign (options, outputPath, callback) {
     spawnOptions.stdio = ['ignore', 'ignore', 'pipe']
   }
 
-  console.log("spawning " + getSigncodePath(options) + " " + args.join(' '));
+  // console.log("spawning " + getSigncodePath(options) + " " + args.join(' '));
   var signcode = ChildProcess.spawn(getSigncodePath(options), args, spawnOptions)
 
   var stderr = ''
@@ -208,12 +209,16 @@ function getOutputPath (inputPath, hash) {
 }
 
 function getSigncodePath (options) {
-  if (options.signcodePath) {
-    return options.signcodePath;
+  var result = options.signcodePath || process.env.SIGNTOOL_PATH
+  if (result) {
+    return result
+  }
+  if (process.env.USE_SYSTEM_SIGNCODE || process.platform === 'linux') {
+    return "osslsigncode"
   }
   
   if (process.platform === 'win32') {
-    return path.join(__dirname, 'vendor', 'signtool.exe')
+    return path.join(__dirname, 'vendor', 'windows-' + (os.release().startsWith('6.') ? '6' : '10'), 'signtool.exe')
   } else {
     return path.join(__dirname, 'vendor', process.platform, 'osslsigncode')
   }
