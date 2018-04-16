@@ -2,6 +2,7 @@ var ChildProcess = require('child_process')
 var fs = require('fs')
 var path = require('path')
 var os = require('os')
+var defaultTimestampUrl = 'http://timestamp.verisign.com/scripts/timstamp.dll'
 
 exports.sign = function (options, callback) {
   var signOptions = Object.assign({}, options)
@@ -58,15 +59,18 @@ exports.verify = function (options, callback) {
 
 // on windows be aware of http://stackoverflow.com/a/32640183/1910191
 function spawnSign (options, outputPath, callback) {
-  var timestampingServiceUrl = 'http://timestamp.verisign.com/scripts/timstamp.dll'
+  var timestampUrl = options.timestampUrl || defaultTimestampUrl
   var isWin = process.platform === 'win32'
   var args = isWin ? [
     'sign',
-    options.nest || options.hash == 'sha256' ? '/tr' : '/t', options.nest || options.hash == 'sha256' ? "http://timestamp.comodoca.com/rfc3161" : timestampingServiceUrl
+    (options.nest || options.hash === 'sha256') ? '/tr' : '/t',
+    (options.nest || options.hash === 'sha256')
+      ? 'http://timestamp.comodoca.com/rfc3161'
+      : timestampUrl
   ] : [
     '-in', options.path,
     '-out', outputPath,
-    '-t', timestampingServiceUrl
+    '-t', timestampUrl
   ]
 
   var certExtension = path.extname(options.cert)
@@ -79,7 +83,7 @@ function spawnSign (options, outputPath, callback) {
   }
 
   if (options.hash) {
-    if (!isWin || options.hash !== "sha1") {
+    if (!isWin || options.hash !== 'sha1') {
       args.push(isWin ? '/fd' : '-h', options.hash)
       if (isWin) {
         args.push('/td', 'sha256')
@@ -214,9 +218,9 @@ function getSigncodePath (options) {
     return result
   }
   if (process.env.USE_SYSTEM_SIGNCODE || process.platform === 'linux') {
-    return "osslsigncode"
+    return 'osslsigncode'
   }
-  
+
   if (process.platform === 'win32') {
     return path.join(__dirname, 'vendor', 'windows-' + (os.release().startsWith('6.') ? '6' : '10'), 'signtool.exe')
   } else {
