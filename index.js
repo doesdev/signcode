@@ -157,6 +157,7 @@ function spawnSign (options, outputPath, callback) {
           message += '. ' + errorOutput
         }
       }
+      message += 'ARGS: ' + args.join(' ')
       callback(Error(message))
     }
   })
