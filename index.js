@@ -3,6 +3,7 @@ var fs = require('fs')
 var path = require('path')
 var os = require('os')
 var defaultTimestampUrl = 'http://timestamp.verisign.com/scripts/timstamp.dll'
+var defaultRfcTimestampUrl = 'http://timestamp.comodoca.com/rfc3161'
 
 exports.sign = function (options, callback) {
   var signOptions = Object.assign({}, options)
@@ -59,14 +60,14 @@ exports.verify = function (options, callback) {
 
 // on windows be aware of http://stackoverflow.com/a/32640183/1910191
 function spawnSign (options, outputPath, callback) {
+  let useRfc = options.nest || options.hash === 'sha256'
   var timestampUrl = options.timestampUrl || defaultTimestampUrl
+  var rfcTimestampUrl = options.rfcTimestampUrl || defaultRfcTimestampUrl
   var isWin = process.platform === 'win32'
   var args = isWin ? [
     'sign',
-    (options.nest || options.hash === 'sha256') ? '/tr' : '/t',
-    (options.nest || options.hash === 'sha256')
-      ? 'http://timestamp.comodoca.com/rfc3161'
-      : timestampUrl
+    useRfc ? '/tr' : '/t',
+    useRfc ? rfcTimestampUrl : timestampUrl
   ] : [
     '-in', options.path,
     '-out', outputPath,
